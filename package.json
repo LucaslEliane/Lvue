@@ -1,0 +1,26 @@
+{
+  "name": "Lvue",
+  "version": "1.0.0",
+  "description": "a vue demo from Lucas Twilight",
+  "main": "index.js",
+  "author": "lucaslEliane <517197934@qq.com>",
+  "license": "MIT",
+  "dependencies": {
+    "eslint": "^4.5.0"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "chai": "^4.1.1",
+    "eslint": "^4.5.0",
+    "eslint-config-airbnb-base": "^11.3.1",
+    "eslint-plugin-import": "^2.7.0",
+    "karma": "^1.7.0",
+    "karma-chai": "^0.1.0",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-mocha": "^1.3.0",
+    "karma-webpack": "^2.0.4",
+    "mocha": "^3.5.0",
+    "webpack": "^3.5.5"
+  }
+}

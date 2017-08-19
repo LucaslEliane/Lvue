@@ -1,0 +1,14 @@
+# spec测试文件
+
+spec/*
+
+# 配置文件
+
+karma.conf.js
+package.json
+yarn.lock
+.gitignore
+
+# default
+
+node_modules/*
