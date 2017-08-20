@@ -9,7 +9,8 @@ const singleHTML = '<html> aaa </html>';
 const htmlSlice = '<body><div>This is a div<img /></div><span>This is a span</span><!-- This is a piece of comment --></body>'
 const htmlFull = '<!DOCTYPE HTML>\n<html>\n<head>\n<meta charset="utf-8">\n<style>\n.container { height: 200px; }\n' +
   '</style>\n<script src="http://bootcdn/bootstrap/bootstrap.js">\n</script>\n</head>\n<body>\n<div class="container">\n' +
-  'This is a div</div><div class="container" aria-hidden><img src="http://xxx"/><div class="internal">This is internal div' +
+  'This is a div</div><div class="container" aria-hidden @click="goHome()">\n' +
+  '<img src="http://xxx"/><div class="internal" v-bind:class="name" @click.prevent="goHome()">This is internal div' +
   '</div></div></body></html>';
 
 describe('不含有属性的HTML解析测试', function() {
@@ -66,6 +67,7 @@ describe('含有所有类型属性和标签的HTML', function() {
     expect(doc).to.include({
       type: 'DOCTYPE',
       value: 'HTML',
+      DONE: true,
     });
 
     const html = parseResult[1];
@@ -76,6 +78,7 @@ describe('含有所有类型属性和标签的HTML', function() {
 
     expect(meta).to.deep.include({
       type: 'meta',
+      DONE: true,
       attribute: {
         charset: 'utf-8',
       },
@@ -87,18 +90,20 @@ describe('含有所有类型属性和标签的HTML', function() {
     const script = head.children[2];
     expect(script).to.deep.include({
       type: 'script',
+      DONE: true,
       attribute: {
         src: 'http://bootcdn/bootstrap/bootstrap.js',
       },
     });
 
     const body = html.children[1];
-    console.log(JSON.stringify(body));
     expect(body.children.length).to.be.equal(2);
+
     const firstContainer = body.children[0];
     const secondContainer = body.children[1];
     expect(firstContainer).to.deep.include({
       text: 'This is a div',
+      DONE: true,
       attribute: {
         class: 'container',
       },
@@ -106,23 +111,34 @@ describe('含有所有类型属性和标签的HTML', function() {
 
     expect(secondContainer).to.deep.include({
       type: 'div',
+      DONE: true,
       attribute: {
         class: 'container',
         'aria-hidden': true,
+      },
+      VAttribute: {
+        '@click': 'goHome()',
       },
     });
 
     const img = secondContainer.children[0];
     expect(img).to.deep.include({
       type: 'img',
+      DONE: true,
       attribute: {
         src: 'http://xxx',
       },
     });
     const internalDiv = secondContainer.children[1];
     expect(internalDiv).to.deep.include({
+      type: 'div',
+      DONE: true,
       attribute: {
         class: 'internal',
+      },
+      VAttribute: {
+        'v-bind:class': 'name',
+        '@click.prevent': 'goHome()',
       },
       text: 'This is internal div',
     });
