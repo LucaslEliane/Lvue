@@ -1,10 +1,10 @@
 ## 分几步实现一个简单的响应式前端框架(一)：template parse
 
-###前言
+### 前言
 
 这几篇博客写于17年8月正在准备找工作的时候，由于之前看过React的源代码，并且这时最流行的响应式前端框架主要有两个，其一是React，由facebook主导的一个开源项目，另外一个是Vue，是yyx大神自己开始架构的一个开源项目。所以希望对Vue的源码也有一定的了解，就准备着手自己实现一个简单的响应式框架。其实也是在阅读Vue源码的时候对于其核心部分逻辑的一个拆解和简化，帮助自己更好的理解Vue在构建和更新过程中的操作。
 
-当然由于还没有工作经验，写出来的代码会有一些简陋，但是希望能够帮助大家在使用Vue的时候，更好的理解其中内部的原理，而不是简单的使用。
+当然由于还没有工作经验，写出来的代码会有一些简陋，但是希望能够让自己在使用Vue的时候，更好的理解其中内部的原理，而不是简单的使用。
 
 ### React和Vue的响应式区别
 
@@ -70,4 +70,107 @@ Vue.component('heading', {
 2. 自闭的HTML标签`<xx />`，这类标签不含有子元素，比如常用的img标签、meta标签。
 3. 闭合的HTML标签`<xx></xx>`，这类标签可以含有子元素，是最常用的一种标签类型。
 4. comment的HTML标签`<!-- xxx -->`，这类标签代表HTML的注释。
+
+使用`while`来对整个模板字符串进行处理，对于各种情况进行拦截，直到所有的拦截函数都失效，这时判断整个template字符串是否被完整解析，如果还有剩余的非空字符，那么就可以知道这个template字符串是不符合标准的了，那么就抛出一个异常。
+
+然后将所有解析的结果保存在AST中，每个DOM节点对应一个AST中的对象。每个对象含有template解析出来的文本、属性、标签名等信息。
+
+要生成一个AST，就需要使用栈来实现，比如当遇到了一个`<div>`标签的时候，这个标签在解析完属性之后，被推入栈，然后之后解析的内容都会是这个标签的子节点，并且全部入栈，直到遇到了一个`</div>`标签，然后对于栈中的元素挨个出栈，直到遇到了匹配的第一个`<div>`标签为止。
+
+[具体的HTML解析代码可以看这里](../src/compiler/parseHTML.js)
+
+```javascript
+// 模板解析的伪代码
+while(lastHtml.length) {
+  if (doctypeRegExp.test(lastHtml)) {
+    // doctype string handle code
+  }
+  if (commentRegExp.test(lastHtml)) {
+    // comment string handle code
+  }
+  if (selfCloseTag.test(lastHtml)) {
+    // 自闭合标签的处理
+    while (attribute.test(lastHtml)) {
+      // 处理属性
+    }
+  }
+  if (commonTagStart.test(lastHtml))  {
+    // 处理一般标签的起始标签
+    while (attribute.test(lastHtml)) {
+      // 处理属性
+    }
+  }
+  if (commonTagEnd.test(lastHtml)) {
+    // 处理一般标签的结束标签
+  }
+  // 如果前面的逻辑都被跳过了，那也说明了template字符串具有不能解析的
+  // 地方，那这个template字符串就是不合法的，抛出一个错误
+}
+```
+
+### v-属性解析
+
+对于一般的属性，可以直接将其保存到抽象语法树(AST)的节点上，而对于一些框架内置的属性，需要额外的处理，比如具有`v-for`属性的标签，其子标签不能够含有`ref`属性，又比如具有`v-else`属性的标签的上一个兄弟标签必须要包含合法的`v-if`属性。
+
+这些属性的额外处理需要包含一些全局属性来进行设置，比如当前节点的父节点，或者当前节点的前一个兄弟节点，所以这些方法用闭包传入到`parseHTML`函数中，这样在调用的时候就可以保证一个解析的全局状态了。
+
+对于v-属性的额外的解析操作可以配合上面的HTML解析的代码，看这里[v-属性解析，也是HTML解析的wrapper函数](../src/compiler/parse.js)
+
+### 构建`render`函数
+
+最终返回的信息不能够是框架不能识别的AST，所以还需要将构建好的AST转换为`render`函数来帮助进行组件的渲染过程，`render`函数的具体形式在上面都已经给出了，在进行`render`的时候，需要剥离出来各种框架属性，然后设置组件的各种状态。
+
+这些工作在v-属性解析的时候已经完成了大半，还剩下一些额外的处理。
+
+构建的`render`函数需要传入`createElement()`函数作为参数来进行组件的构建。
+
+在Vue中，编译出来的`render`函数其实是这样的：
+
+```javascript
+function anonymous() {
+  with(this){
+    return _c('div', [
+      _c('span', [
+        _v(_s(msg))
+      ])
+    ])
+  }
+}
+```
+
+由于构建函数的时候，需要大量的进行字符串的拼接操作，所以最后得到的`render`其实是一系列函数调用的字符串，而为了尽可能缩减这个字符串的长度，并且对于字符串，让其执行的时候切换到指定的上下文，这里使用了并不安全的`with`来进行上下文的切换，并且将所有的函数都替换成了`_c`、`_s`这样的函数名，在调用上下文中将这些函数赋值为正常的函数就可以了。
+
+对于不同类型的节点，在渲染过程中的操作可能会有很大差别，所以很难对于大块的代码进行复用，这里基本上对于每一种类型都有相关的处理函数。这些函数都是后面需要实现的。当然在实现的时候对于一些组件或者方法会进行一定的简化。
+
+这种方法在很多框架中都有过使用，React在编译JSX的时候也使用了这样的方法。然后在返回`render`函数的时候将其包装在一个匿名函数中就可以对其进行执行了。
+
+这些渲染相关的函数在组件的声明周期当中很可能会被调用多次，为了在可能的情况下对编译出来的框架的大小进行缩减，这样也是一个很好的方法。
+
+Vue渲染相关的函数列表：
+
+```javascript
+Vue.prototype._c = createElement
+Vue.prototype._o = markOnce
+Vue.prototype._n = toNumber
+Vue.prototype._s = toString
+Vue.prototype._l = renderList
+Vue.prototype._t = renderSlot
+Vue.prototype._q = looseEqual
+Vue.prototype._i = looseIndexOf
+Vue.prototype._m = renderStatic
+Vue.prototype._f = resolveFilter
+Vue.prototype._k = checkKeyCodes
+Vue.prototype._b = bindObjectProps
+Vue.prototype._v = createTextVNode
+Vue.prototype._e = createEmptyVNode
+Vue.prototype._u = resolveScopedSlots
+```
+
+### 总结
+
+这个部分的代码需要比较清晰的逻辑来对template语法进行解析，并且需要比较了解正则表达式，这里面基本运用了所有正则表达式的特性。
+
+解析完成的结果可以通过单元测试来进行自动测试。
+[mocha的单元测试用例--parseHTML。](../spec/parseHTML.spec.js)
+[mocha的单元测试用例--parse。](../spec/parseHTML.spec.js)
 

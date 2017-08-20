@@ -15,7 +15,10 @@ const htmlFull = '<!DOCTYPE HTML>\n<html>\n<head>\n<meta charset="utf-8">\n<styl
 
 describe('不含有属性的HTML解析测试', function() {
   it('一个单独的DOCTYPE标签', function() {
-    const parseResult = parseHTML(singleDoc);
+    const parseResult = parseHTML(singleDoc, {
+     start: function() {},
+     close: function() {},
+    });
     const length = parseResult.length;
     const type = parseResult[0].type;
     const value = parseResult[0].value;
@@ -25,7 +28,10 @@ describe('不含有属性的HTML解析测试', function() {
   });
 
   it('一个单独的comment标签', function() {
-    const parseResult = parseHTML(singleComment);
+    const parseResult = parseHTML(singleComment, {
+      start: function() {},
+      close: function() {},
+    });
     const type = parseResult[0].type;
     const value = parseResult[0].value;
     expect(type).to.be.equal('COMMENT');
@@ -33,7 +39,10 @@ describe('不含有属性的HTML解析测试', function() {
   });
 
   it('一个单独的element标签', function() {
-    const parseResult = parseHTML(singleHTML);
+    const parseResult = parseHTML(singleHTML, {
+      start: function() {},
+      close: function() {},
+    });
     const type = parseResult[0].type;
     const text = parseResult[0].text;
     expect(type).to.be.equal('html');
@@ -41,7 +50,10 @@ describe('不含有属性的HTML解析测试', function() {
   });
 
   it('一个比较复杂的不含属性的HTML字符串', function() {
-    const parseResult = parseHTML(htmlSlice);
+    const parseResult = parseHTML(htmlSlice, {
+      start: function() {},
+      close: function() {},
+    });
     const body = parseResult[0];
     const div = body.children[0];
     const img = div.children[0];
@@ -60,7 +72,10 @@ describe('不含有属性的HTML解析测试', function() {
 
 describe('含有所有类型属性和标签的HTML', function() {
   it('一个标准格式的HTML', function() {
-    const parseResult = parseHTML(htmlFull);
+    const parseResult = parseHTML(htmlFull, {
+      start: function() {},
+      close: function() {},
+    });
     const length = parseResult.length;
     expect(length).to.be.equal(2);
     const doc = parseResult[0];

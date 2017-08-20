@@ -51,7 +51,7 @@ function isVoidTag(lastHtml) {
   return !matchTag.test(html);
 }
 
-function handleVoidTag(htmlStack, matchResult, html) {
+function handleVoidTag(htmlStack, matchResult, html, start) {
   let lastHtml = html;
   const currentDomNode = new DomNode(matchResult[1]);
   htmlStack.push(currentDomNode);
@@ -73,10 +73,11 @@ function handleVoidTag(htmlStack, matchResult, html) {
   const close = startTagClose.exec(lastHtml);
   currentDomNode.searchDONE();
   lastHtml = lastHtml.replace(close[0], '').trim();
+  start(currentDomNode, false);
   return lastHtml;
 }
 
-function handleStartTag(htmlStack, matchResult, html) {
+function handleStartTag(htmlStack, matchResult, html, start) {
   let lastHtml = html;
   const currentDomNode = new DomNode(matchResult[1]);
   htmlStack.push(currentDomNode);
@@ -96,6 +97,7 @@ function handleStartTag(htmlStack, matchResult, html) {
     lastHtml = lastHtml.replace(att[0], '').trim();
   }
   const close = startTagClose.exec(lastHtml);
+  start(currentDomNode, true);
   lastHtml = lastHtml.replace(close[0], '').trim();
   return lastHtml;
 }
@@ -123,7 +125,8 @@ function handleDoctype(htmlStack, matchResult, html) {
  * @param {string} template LVue的模板字符串 
  * @return {Array:[DomNode]} 这个对象包含所有节点被解析完成后的一个数组
  */
-const parseHTML = function parseHTML(template) {
+const parseHTML = function parseHTML(template, options) {
+  const { start, close } = options;
   const htmlStack = [];
   const html = template;
   let lastHtml = html.trim();
@@ -139,9 +142,9 @@ const parseHTML = function parseHTML(template) {
     }
     if (matchResult = startTagOpen.exec(lastHtml)) {
       if (isVoidTag(lastHtml)) {
-        lastHtml = handleVoidTag(htmlStack, matchResult, lastHtml);
+        lastHtml = handleVoidTag(htmlStack, matchResult, lastHtml, start);
       } else {
-        lastHtml = handleStartTag(htmlStack, matchResult, lastHtml);
+        lastHtml = handleStartTag(htmlStack, matchResult, lastHtml, start);
       }
       continue;
     }
@@ -154,11 +157,12 @@ const parseHTML = function parseHTML(template) {
         popNode = htmlStack.pop();
       }
       if (popNode.type !== type) {
-        throw new ReferenceError('template string is illegal');
+        throw new Error('template string is illegal');
       }
       popNode.setChildren(childrenArray);
       popNode.searchDONE();
       htmlStack.push(popNode);
+      close(popNode);
       lastHtml = lastHtml.replace(matchResult[0], '').trim();
       continue;
     }
@@ -168,7 +172,7 @@ const parseHTML = function parseHTML(template) {
       continue;
     }
     if (lastHtml.trim().length === 0) {
-      throw new ReferenceError('template string is illegal');
+      throw new Error('template string is illegal');
     }
   }
   return htmlStack;
